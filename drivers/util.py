@@ -1418,6 +1418,7 @@ class extractXVA:
     #   returns filename, checksum content. Returns filename, '' in case  
     #   of checksum file missing. e.g. ova.xml
     def getTuple(self):
+        # pylint: disable=E1101
         zerod_record = 0
         ret_f_name = ''
         ret_base_f_name = ''

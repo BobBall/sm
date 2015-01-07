@@ -115,7 +115,7 @@ class Util:
         (stdout, stderr) = proc.communicate(inputtext)
         stdout = str(stdout)
         stderr = str(stderr)
-        rc = proc.returncode
+        rc = proc.returncode # pylint: disable=E1101
         if log:
             Util.log("`%s`: %s" % (args, rc))
         if type(expectedRC) != type([]):
