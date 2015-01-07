@@ -57,6 +57,7 @@ SM_LIBS += resetvdis
 SM_LIBS += B_util
 SM_LIBS += wwid_conf
 SM_LIBS += trim_util
+SM_LIBS += constants
 
 UDEV_RULES = 40-multipath
 MPATH_DAEMON = sm-multipath
@@ -66,7 +67,11 @@ CRON_JOBS += ringwatch
 
 SM_XML := XE_SR_ERRORCODES
 
-SM_DEST := /opt/xensource/sm/
+SM_DEST_DEFAULT := /opt/xensource/sm/
+BLKTAP_ROOT_DEFAULT := /usr/
+INVENTORY_DEFAULT := /etc/xensource-inventory
+
+SM_DEST := $(SM_DEST_DEFAULT)
 DEBUG_DEST := /opt/xensource/debug/
 BIN_DEST := /opt/xensource/bin/
 MASTER_SCRIPT_DEST := /etc/xensource/master.d/
@@ -76,6 +81,8 @@ CRON_DEST := /etc/cron.d/
 UDEV_RULES_DIR := /etc/udev/rules.d/
 INIT_DIR := /etc/rc.d/init.d/
 MPATH_CONF_DIR := /etc/multipath.xenserver/
+BLKTAP_ROOT := $(BLKTAP_ROOT_DEFAULT)
+INVENTORY := $(INVENTORY_DEFAULT)
 
 SM_STAGING := $(DESTDIR)
 SM_STAMP := $(MY_OBJ_DIR)/.staging_stamp
@@ -84,8 +91,8 @@ SM_PY_FILES = $(foreach LIB, $(SM_LIBS), drivers/$(LIB).py) $(foreach DRIVER, $(
 
 .PHONY: build
 build:
-	make -C dcopy 
-	make -C mpathroot
+	make -C dcopy DESTDIR=$(SM_STAGING) DEBUGDIR=$(DEBUG_DEST)
+	make -C mpathroot DESTDIR=$(SM_STAGING) SM_DEST=$(SM_DEST)
 
 .PHONY: precommit
 precommit: build
@@ -166,13 +173,17 @@ install: precheck
 	mkdir -p $(SM_STAGING)$(LIBEXEC)
 	install -m 755 scripts/local-device-change $(SM_STAGING)$(LIBEXEC)
 	install -m 755 scripts/check-device-sharing $(SM_STAGING)$(LIBEXEC)
-	$(MAKE) -C dcopy install DESTDIR=$(SM_STAGING)
-	$(MAKE) -C snapwatchd install DESTDIR=$(SM_STAGING)
-	$(MAKE) -C mpathroot install DESTDIR=$(SM_STAGING)
+	$(MAKE) -C dcopy install DESTDIR=$(SM_STAGING) DEBUGDIR=$(DEBUG_DEST)
+# srmetadata.py and vss_control depend on the location of snapwatchd so must force it here
+	$(MAKE) -C snapwatchd install DESTDIR=$(SM_STAGING) SM_DEST=$(SM_DEST) PREFIX=$(SM_DEST)snapwatchd
+	$(MAKE) -C mpathroot install DESTDIR=$(SM_STAGING) SM_DEST=$(SM_DEST)
 	ln -sf $(SM_DEST)blktap2.py $(SM_STAGING)$(BIN_DEST)/blktap2
 	install -m 755 -d $(SM_STAGING)$(CRON_DEST)
 	install -m 644 $(CRON_JOBS:%=etc/cron.d/%) -t $(SM_STAGING)$(CRON_DEST)
 	ln -sf $(SM_DEST)lcache.py $(SM_STAGING)$(BIN_DEST)tapdisk-cache-stats
+	find $(SM_STAGING) -type f | xargs sed -i "s#\(BLKTAP_ROOT \?\)=\( \?['\"]\)$(BLKTAP_ROOT_DEFAULT)#\1=\2$(BLKTAP_ROOT)#"
+	find $(SM_STAGING) -type f | xargs sed -i "s#\(SM_DEST \?\)=\( \?['\"]\)$(SM_DEST_DEFAULT)#\1=\2$(SM_DEST)#"
+	find $(SM_STAGING) -type f | xargs sed -i "s#\(INVENTORY \?\)=\( \?['\"]\)$(INVENTORY_DEFAULT)#\1=\2$(INVENTORY)#"
 
 .PHONY: clean
 clean:
